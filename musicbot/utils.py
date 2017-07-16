@@ -6,6 +6,12 @@ import unicodedata
 from hashlib import md5
 from .constants import DISCORD_MSG_CHAR_LIMIT
 
+def illegal_char(string, chars):
+    illegal = re.compiles(chars)
+    if illegal.search(string):
+        return True
+    else:
+        return False
 
 def load_file(filename, skip_commented_lines=True, comment_char='#'):
     try:

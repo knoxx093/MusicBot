@@ -26,7 +26,7 @@ from musicbot.playlist import Playlist
 from musicbot.player import MusicPlayer
 from musicbot.config import Config, ConfigDefaults
 from musicbot.permissions import Permissions, PermissionsDefaults
-from musicbot.utils import load_file, write_file, sane_round_int
+from musicbot.utils import load_file, write_file, sane_round_int, illegal_char
 
 from . import exceptions
 from . import downloader
@@ -1288,6 +1288,44 @@ class MusicBot(discord.Client):
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix),
                 delete_after=30
             )
+
+    async def cmd_pladd(self, player, song_url=None):
+        """
+        Usage:
+            {command_prefix}pladd current song
+            {command_prefix}pladd song_url
+
+        Adds a song to the autoplaylist.
+        """
+
+        #No url provided
+        if not song_url:
+            #Check if there is something playing and get the information
+            if player._current_entry:
+                song_url = player._current_entry.url
+                title = player._current_entry.title
+
+            else:
+                raise exceptions.CommandError('There is nothing playing.', expire_in=20)
+
+        else:
+            #Get song info from url
+            info = await self.downloader.safe_extract_info(player.playlist.loop, song_url, download=False, process=False)
+            title = info.get('title', '')
+
+            #Verify proper url
+            if not title:
+                raise exceptions.CommandError('Invalid url. Please insure link is a valid YouTube, SoundCloud or BandCamp url.', expire_in=20)
+                
+        #Verify song isn't already in our playlist
+        for url in self.autoplaylist:
+            if song_url == url:
+                return Response("Song already present in autoplaylist.", delete_after=30)
+
+        self.autoplaylist.append(song_url)
+        write_file(self.config.auto_playlist_file, self.autoplaylist)
+        self.autoplaylist = load_file(self.config.auto_playlist_file)
+        return Response("Added %s to autoplaylist." % title, delete_after=30)
 
     async def cmd_summon(self, channel, author, voice_channel):
         """
